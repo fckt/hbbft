@@ -287,6 +287,11 @@ where
                 for id in &next_participants {
                     if id != self.our_id() {
                         self.peer_epochs.entry(id.clone()).or_default();
+                        if let Some(&last) = self.last_epochs.get(id) {
+                            if last < batch.output_epoch() {
+                                self.last_epochs.remove(id);
+                            }
+                        }
                     }
                 }
                 debug!(
@@ -415,10 +420,10 @@ where
     where
         I: Iterator<Item = D::NodeId>,
     {
-        SenderQueueBuilder {
-            algo,
-            peer_epochs: peer_ids.map(|id| (id, D::Epoch::default())).collect(),
-        }
+        let not_us = |id: &D::NodeId| id != algo.our_id();
+        let init_entry = |id: D::NodeId| (id, D::Epoch::default());
+        let peer_epochs = peer_ids.filter(not_us).map(init_entry).collect();
+        SenderQueueBuilder { algo, peer_epochs }
     }
 
     /// Sets the peer epochs.
